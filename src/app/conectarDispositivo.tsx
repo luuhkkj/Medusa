@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 //"CSS"
-import { styles } from './style';
+import { styles } from '../style';
 
 //lista de dispositivos *mockada, sem busca real ainda*
 const dispositivosEncontrados = [
@@ -10,7 +10,7 @@ const dispositivosEncontrados = [
     { id: '2', nome: 'Medusa - Colar' },
 ];
 
-export default function ConectarDispositivoScreen({ navigation }: any) {
+export default function ConectarDispositivoScreen() {
 
 //conectar ao dispositivo escolhido *sem lógica real ainda*
     const handleConectar = (nome: string) => {

@@ -1,19 +1,21 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 //"CSS"
-import { styles } from './style';
+import { styles } from '../style';
 
-export default function TelaInicialScreen({ navigation }: any) {
+export default function TelaInicialScreen() {
+  const router = useRouter();
 
 //ir para a tela de rotas
   const handleVerRotas = () => {
-    navigation.navigate('Rotas');
+    router.push('/rotas');
   };
 
 //ir para a tela de conectar dispositivo
   const handleConectarDispositivo = () => {
-    navigation.navigate('ConectarDispositivo');
+    router.push('/conectarDispositivo');
   };
 
   return (

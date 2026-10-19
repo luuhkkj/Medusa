@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 //"CSS"
-import { styles } from './style';
+import { styles } from '../style';
 
 //OBS: mapa ainda é um placeholder visual — falta integrar uma lib de mapa
 //(ex: react-native-maps) que ainda não está instalada no projeto

@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 //"CSS"
-import { styles } from './style';
+import { styles } from '../style';
 
-export default function PerfilScreen({ navigation }: any) {
+export default function PerfilScreen() {
 
 //sair da conta *sem lógica real ainda*
     const handleSair = () => {

@@ -33,6 +33,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir câmera para capturar imagens da demonstração.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {

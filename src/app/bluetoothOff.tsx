@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 //"CSS"
-import { styles } from './style';
+import { styles } from '../style';
 
 export default function BluetoothOffScreen() {
 

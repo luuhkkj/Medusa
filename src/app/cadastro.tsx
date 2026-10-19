@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { AntDesign, FontAwesome5, Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 //"CSS" 
-import { styles } from './style';
+import { styles } from '../style';
 
-export default function Pagcadastro({ navigation}: any ) {
+export default function Pagcadastro() {
+  const router = useRouter();
 
 //ir para a tela inicial
   const handleEntrar = () => {
@@ -13,7 +15,7 @@ export default function Pagcadastro({ navigation}: any ) {
 
 //ir para a pag login *tá la no final do código*
   const handleIrParaLogin = () => {
-    navigation.navigate('Login');
+    router.push('/');
   };
 
 //entrar com as redes sociais *não remover que quebra o código*
