@@ -35,3 +35,4 @@ android/local.properties
 
 expo-env.d.ts
 # @end expo-cli
+server/usuarios.json

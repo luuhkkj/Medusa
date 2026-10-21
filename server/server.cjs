@@ -1,13 +1,80 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const {
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} = require('node:crypto');
 const express = require('express');
 const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const sharp = require('sharp');
-const { randomBytes } = require('node:crypto');
 
 if (process.env.NODE_ENV === 'production') {
   throw new Error(
     'Demonstração local: uso em produção bloqueado.',
   );
+}
+
+const USUARIOS_FILE = path.join(__dirname, 'usuarios.json');
+
+function inicializarArquivoUsuarios() {
+  try {
+    if (!fs.existsSync(USUARIOS_FILE)) {
+      fs.writeFileSync(USUARIOS_FILE, '[]\n', 'utf-8');
+    } else {
+      const conteudo = fs.readFileSync(USUARIOS_FILE, 'utf-8').trim();
+      if (!conteudo) {
+        fs.writeFileSync(USUARIOS_FILE, '[]\n', 'utf-8');
+      }
+    }
+  } catch (erro) {
+    console.error('Erro ao inicializar usuarios.json:', erro);
+  }
+}
+
+function carregarUsuarios() {
+  try {
+    if (!fs.existsSync(USUARIOS_FILE)) {
+      inicializarArquivoUsuarios();
+      return [];
+    }
+    const conteudo = fs.readFileSync(USUARIOS_FILE, 'utf-8');
+    return JSON.parse(conteudo || '[]');
+  } catch (erro) {
+    console.error('Erro ao ler usuarios.json:', erro);
+    return [];
+  }
+}
+
+function salvarUsuarios(usuarios) {
+  fs.writeFileSync(USUARIOS_FILE, JSON.stringify(usuarios, null, 2), 'utf-8');
+}
+
+// Inicializa o arquivo de persistência
+inicializarArquivoUsuarios();
+
+function hashSenha(senha) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(senha, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verificarSenha(senha, hashArmazenado) {
+  if (typeof senha !== 'string' || typeof hashArmazenado !== 'string') {
+    return false;
+  }
+  const partesHash = hashArmazenado.split(':');
+  if (partesHash.length !== 2) {
+    return false;
+  }
+  const [salt, chaveOriginal] = partesHash;
+  const hashBuffer = Buffer.from(chaveOriginal, 'hex');
+  const testeBuffer = scryptSync(senha, salt, hashBuffer.length);
+  if (hashBuffer.length !== testeBuffer.length) {
+    return false;
+  }
+  return timingSafeEqual(hashBuffer, testeBuffer);
 }
 
 const app = express();
@@ -29,10 +96,22 @@ app.use((req, res, next) => {
     '::ffff:127.0.0.1',
   ].includes(ip);
 
-  if (!local || req.get('origin')) {
+  const origin = req.get('origin');
+  const originValida = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+  if (!local || !originValida) {
     return res.status(403).json({
       erro: 'API disponível somente para demonstração local.',
     });
+  }
+
+  if (origin) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
   }
 
   next();
@@ -90,7 +169,141 @@ app.post(
   },
 );
 
-app.use('/v1', (req, res, next) => {
+// Rotas de autenticação de usuários
+app.post(
+  '/v1/auth/cadastro',
+  express.json({ limit: '10kb' }),
+  (req, res) => {
+    const { nome, email, senha } = req.body || {};
+
+    if (
+      !nome ||
+      !email ||
+      !senha ||
+      typeof nome !== 'string' ||
+      typeof email !== 'string' ||
+      typeof senha !== 'string' ||
+      !nome.trim() ||
+      !email.trim()
+    ) {
+      return res.status(400).json({
+        erro: 'Preencha todos os campos obrigatórios (nome, email e senha).',
+      });
+    }
+
+    if (senha.length < 6) {
+      return res.status(400).json({
+        erro: 'A senha deve conter no mínimo 6 caracteres.',
+      });
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+    const usuarios = carregarUsuarios();
+
+    const usuarioExistente = usuarios.find(
+      u => u.email.toLowerCase() === emailNormalizado,
+    );
+
+    if (usuarioExistente) {
+      return res.status(409).json({
+        erro: 'Este e-mail já está cadastrado.',
+      });
+    }
+
+    const id = randomBytes(16).toString('hex');
+    const novoUsuario = {
+      id,
+      nome: nome.trim(),
+      email: emailNormalizado,
+      senhaHash: hashSenha(senha),
+      criadoEm: new Date().toISOString(),
+    };
+
+    usuarios.push(novoUsuario);
+    salvarUsuarios(usuarios);
+
+    const token = randomBytes(32).toString('base64url');
+
+    sessoes.set(token, {
+      usuarioId: novoUsuario.id,
+      expiraEm: Date.now() + 24 * 60 * 60_000,
+      recebidos: {
+        frente: false,
+        verso: false,
+        selfie: false,
+      },
+      finalizada: false,
+    });
+
+    return res.status(201).json({
+      mensagem: 'Usuário cadastrado com sucesso!',
+      token,
+      usuario: {
+        id: novoUsuario.id,
+        nome: novoUsuario.nome,
+        email: novoUsuario.email,
+      },
+    });
+  },
+);
+
+app.post(
+  '/v1/auth/login',
+  express.json({ limit: '10kb' }),
+  (req, res) => {
+    const { email, senha } = req.body || {};
+
+    if (
+      !email ||
+      !senha ||
+      typeof email !== 'string' ||
+      typeof senha !== 'string' ||
+      !email.trim()
+    ) {
+      return res.status(400).json({
+        erro: 'Informe o e-mail e a senha.',
+      });
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+    const usuarios = carregarUsuarios();
+
+    const usuario = usuarios.find(
+      u => u.email.toLowerCase() === emailNormalizado,
+    );
+
+    if (!usuario || !verificarSenha(senha, usuario.senhaHash)) {
+      return res.status(401).json({
+        erro: 'E-mail ou senha incorretos.',
+      });
+    }
+
+    const token = randomBytes(32).toString('base64url');
+
+    sessoes.set(token, {
+      usuarioId: usuario.id,
+      expiraEm: Date.now() + 24 * 60 * 60_000,
+      recebidos: {
+        frente: false,
+        verso: false,
+        selfie: false,
+      },
+      finalizada: false,
+    });
+
+    return res.status(200).json({
+      mensagem: 'Login realizado com sucesso!',
+      token,
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+      },
+    });
+  },
+);
+
+app.use('/v1/verificacao', (req, res, next) => {
   const token = req
     .get('authorization')
     ?.match(/^Bearer ([A-Za-z0-9_-]+)$/)?.[1];
