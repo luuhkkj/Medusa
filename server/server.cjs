@@ -2,30 +2,27 @@ const express = require('express');
 const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const sharp = require('sharp');
-
-const {
-  randomBytes,
-  timingSafeEqual,
-} = require('node:crypto');
+const { randomBytes } = require('node:crypto');
 
 if (process.env.NODE_ENV === 'production') {
-  throw new Error('Demonstração local: uso em produção bloqueado.');
+  throw new Error(
+    'Demonstração local: uso em produção bloqueado.',
+  );
 }
 
 const app = express();
 const sessoes = new Map();
 
-const codigoLocal = randomBytes(16).toString('hex');
 const partes = ['frente', 'verso', 'selfie'];
 
 app.disable('x-powered-by');
 app.use(helmet());
 
-// Somente conexão local. Não liberar na rede.
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store');
 
   const ip = req.socket.remoteAddress;
+
   const local = [
     '127.0.0.1',
     '::1',
@@ -41,21 +38,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(rateLimit({
-  windowMs: 60_000,
-  limit: 60,
-  message: { erro: 'Muitas solicitações. Aguarde um minuto.' },
-}));
-
-function codigoValido(valor) {
-  if (typeof valor !== 'string') return false;
-
-  const recebido = Buffer.from(valor);
-  const esperado = Buffer.from(codigoLocal);
-
-  return recebido.length === esperado.length
-    && timingSafeEqual(recebido, esperado);
-}
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    limit: 60,
+    message: {
+      erro: 'Muitas solicitações. Aguarde um minuto.',
+    },
+  }),
+);
 
 setInterval(() => {
   for (const [token, sessao] of sessoes) {
@@ -65,17 +56,15 @@ setInterval(() => {
   }
 }, 30_000).unref();
 
-// Pareamento de desenvolvimento, NÃO é login de usuário.
+// Sessão exclusiva da demonstração local.
+// Não representa cadastro ou autenticação de uma pessoa.
 app.post(
   '/demo/sessao',
   express.json({ limit: '2kb' }),
   (req, res) => {
-    if (
-      !codigoValido(req.body?.codigo)
-      || req.body?.somenteDadosFicticios !== true
-    ) {
-      return res.status(401).json({
-        erro: 'Código incorreto ou aviso não confirmado.',
+    if (req.body?.somenteDadosFicticios !== true) {
+      return res.status(400).json({
+        erro: 'Esta demonstração aceita somente dados fictícios.',
       });
     }
 
@@ -97,19 +86,20 @@ app.post(
       finalizada: false,
     });
 
-    res.status(201).json({ token });
+    return res.status(201).json({ token });
   },
 );
 
 app.use('/v1', (req, res, next) => {
-  const token = req.get('authorization')
+  const token = req
+    .get('authorization')
     ?.match(/^Bearer ([A-Za-z0-9_-]+)$/)?.[1];
 
   const sessao = token ? sessoes.get(token) : undefined;
 
   if (!sessao || sessao.expiraEm <= Date.now()) {
     return res.status(401).json({
-      erro: 'Sessão expirada. Volte e inicie novamente.',
+      erro: 'Sessão expirada. Inicie novamente pela identidade.',
     });
   }
 
@@ -133,7 +123,9 @@ app.put(
       const sessao = req.sessaoDemo;
 
       if (!partes.includes(parte)) {
-        return res.status(400).json({ erro: 'Parte inválida.' });
+        return res.status(400).json({
+          erro: 'Parte inválida.',
+        });
       }
 
       if (sessao.finalizada) {
@@ -202,21 +194,23 @@ app.put(
         });
       }
 
-      // Guarda somente se o arquivo foi recebido.
-      // NÃO guarda a foto e NÃO verifica identidade.
+      // Somente registra o recebimento; não salva a imagem.
       sessao.recebidos[parte] = true;
 
-      res.json({
+      return res.json({
         recebidos: sessao.recebidos,
         imagemArmazenada: false,
         identidadeVerificada: false,
       });
     } catch {
-      res.status(422).json({
+      return res.status(422).json({
         erro: 'Não foi possível processar a imagem.',
       });
     } finally {
-      if (Buffer.isBuffer(req.body)) req.body.fill(0);
+      if (Buffer.isBuffer(req.body)) {
+        req.body.fill(0);
+      }
+
       imagemProcessada?.fill(0);
     }
   },
@@ -233,33 +227,41 @@ app.post('/v1/verificacao/concluir', (req, res) => {
 
   sessao.finalizada = true;
 
-  res.json({
+  // A sessão deixa de ser necessária após a conclusão.
+  sessoes.delete(req.tokenDemo);
+
+  return res.json({
     status: 'demo_recebida',
     identidadeVerificada: false,
   });
 });
 
 app.use((erro, req, res, next) => {
-  if (Buffer.isBuffer(req.body)) req.body.fill(0);
+  if (Buffer.isBuffer(req.body)) {
+    req.body.fill(0);
+  }
 
-  if (res.headersSent) return next(erro);
+  if (res.headersSent) {
+    return next(erro);
+  }
 
   const status =
     erro.type === 'entity.too.large' ? 413
-    : erro.type === 'entity.parse.failed' ? 400
-    : 500;
+      : erro.type === 'entity.parse.failed' ? 400
+        : 500;
 
-  res.status(status).json({
-    erro: status === 413
-      ? 'A imagem ultrapassou 5 MiB.'
-      : 'Solicitação inválida ou erro de processamento.',
+  return res.status(status).json({
+    erro:
+      status === 413
+        ? 'A imagem ultrapassou 5 MiB.'
+        : 'Solicitação inválida ou erro de processamento.',
   });
 });
 
 const servidor = app.listen(3333, '127.0.0.1', () => {
   console.log('DEMO LOCAL: não use documentos ou rostos reais.');
   console.log('API: http://127.0.0.1:3333');
-  console.log(`Código temporário para digitar no app: ${codigoLocal}`);
+  console.log('Sessões iniciadas automaticamente pelo app.');
 });
 
 servidor.requestTimeout = 30_000;

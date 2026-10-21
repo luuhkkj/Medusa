@@ -3,18 +3,30 @@ import { File } from 'expo-file-system';
 
 export type Parte = 'frente' | 'verso' | 'selfie';
 
-// Exclusivamente para o teste local por USB.
-const API = 'http://127.0.0.1:3333';
+// Configuração da demonstração no emulador Android.
+const API = 'http://10.0.2.2:3333';
 
 // Existe somente na memória do app.
 let token: string | null = null;
+
+type RespostaApi = {
+  token?: string;
+  erro?: string;
+};
 
 async function requisicao(
   caminho: string,
   metodo: string,
   corpo?: string | File,
   tipo?: string,
-): Promise<void> {
+  exigeSessao = true,
+): Promise<RespostaApi> {
+  if (exigeSessao && !token) {
+    throw new Error(
+      'Sessão indisponível. Inicie novamente pela identidade.',
+    );
+  }
+
   const abortar = new AbortController();
   const timer = setTimeout(() => abortar.abort(), 30_000);
 
@@ -22,22 +34,40 @@ async function requisicao(
     const resposta = await fetch(`${API}${caminho}`, {
       method: metodo,
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(exigeSessao && token
+          ? { Authorization: `Bearer ${token}` }
+          : {}),
         ...(tipo ? { 'Content-Type': tipo } : {}),
       },
       body: corpo,
       signal: abortar.signal,
     });
 
-    const dados = await resposta.json();
+    if (resposta.status === 401) {
+      token = null;
+    }
+
+    const texto = await resposta.text();
+    let dados: RespostaApi = {};
+
+    if (texto) {
+      try {
+        dados = JSON.parse(texto);
+      } catch {
+        throw new Error(
+          `Resposta inválida do servidor (HTTP ${resposta.status}).`,
+        );
+      }
+    }
 
     if (!resposta.ok) {
-      if (resposta.status === 401) token = null;
-
       throw new Error(
-        dados.erro ?? 'Não foi possível completar a solicitação.',
+        dados.erro
+          ?? `Não foi possível continuar (HTTP ${resposta.status}).`,
       );
     }
+
+    return dados;
   } finally {
     clearTimeout(timer);
   }
@@ -47,40 +77,35 @@ export function temSessao() {
   return token !== null;
 }
 
-export async function iniciar(codigo: string) {
+export async function iniciar() {
   token = null;
 
-  const abortar = new AbortController();
-  const timer = setTimeout(() => abortar.abort(), 15_000);
+  const dados = await requisicao(
+    '/demo/sessao',
+    'POST',
+    JSON.stringify({
+      somenteDadosFicticios: true,
+    }),
+    'application/json',
+    false,
+  );
 
-  try {
-    const resposta = await fetch(`${API}/demo/sessao`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        codigo: codigo.trim(),
-        somenteDadosFicticios: true,
-      }),
-      signal: abortar.signal,
-    });
-
-    const dados = await resposta.json();
-
-    if (!resposta.ok || typeof dados.token !== 'string') {
-      throw new Error(dados.erro ?? 'Falha no pareamento.');
-    }
-
-    token = dados.token;
-  } finally {
-    clearTimeout(timer);
+  if (typeof dados.token !== 'string' || !dados.token) {
+    throw new Error(
+      'Não foi possível iniciar a demonstração.',
+    );
   }
+
+  token = dados.token;
 }
 
 export async function enviarFoto(parte: Parte, uri: string) {
   const arquivo = new File(uri);
 
   if (!arquivo.exists || arquivo.size > 5 * 1024 * 1024) {
-    throw new Error('Foto indisponível ou maior que 5 MiB.');
+    throw new Error(
+      'Foto indisponível ou maior que 5 MiB.',
+    );
   }
 
   await requisicao(
@@ -99,5 +124,7 @@ export async function concluir() {
 export function excluirFoto(uri: string) {
   const arquivo = new File(uri);
 
-  if (arquivo.exists) arquivo.delete();
+  if (arquivo.exists) {
+    arquivo.delete();
+  }
 }

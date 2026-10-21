@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import {
   Alert,
   AppState,
-  Button,
+  Image,
   Linking,
+  ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -21,14 +23,44 @@ type Props = {
   tipo: 'documento' | 'rosto';
 };
 
+type BotaoProps = {
+  titulo: string;
+  onPress: () => void;
+  desabilitado?: boolean;
+  secundario?: boolean;
+};
+
+function Botao({
+  titulo,
+  onPress,
+  desabilitado = false,
+  secundario = false,
+}: BotaoProps) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={{ disabled: desabilitado }}
+      activeOpacity={0.8}
+      disabled={desabilitado}
+      onPress={onPress}
+      style={[
+        s.botao,
+        secundario && s.botaoSecundario,
+        desabilitado && s.botaoDesabilitado,
+      ]}
+    >
+      <Text style={s.botaoTexto}>{titulo}</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function VerificacaoEtapa({ tipo }: Props) {
   const camera = useRef<CameraView | null>(null);
+  const scroll = useRef<ScrollView | null>(null);
   const bloqueado = useRef(false);
 
+  const { width, height } = useWindowDimensions();
   const [permissao, pedirPermissao] = useCameraPermissions();
-
-  const [codigo, setCodigo] = useState('');
-  const [confirmado, setConfirmado] = useState(false);
 
   const [conectado, setConectado] = useState(
     tipo === 'rosto' && api.temSessao(),
@@ -43,10 +75,39 @@ export default function VerificacaoEtapa({ tipo }: Props) {
     AppState.currentState === 'active',
   );
 
-  const partes: api.Parte[] =
-    tipo === 'documento' ? ['frente', 'verso'] : ['selfie'];
+  const documento = tipo === 'documento';
+  const selfieEnviada = !documento && indice === 1;
 
-  const parte = partes[indice];
+  const parte: api.Parte = documento
+    ? indice === 0
+      ? 'frente'
+      : 'verso'
+    : 'selfie';
+
+  const compacto = height < 700 || width < 360;
+  const margemHorizontal = width < 360 ? 16 : 28;
+
+  const larguraDisponivel = Math.max(
+    0,
+    Math.min(width - margemHorizontal * 2, 460),
+  );
+
+  const tamanhoImagem = Math.min(
+    larguraDisponivel,
+    compacto ? 150 : 200,
+  );
+
+  const alturaCamera = Math.max(
+    180,
+    Math.min(height * 0.45, 360),
+  );
+
+  const descricao = documento
+    ? 'Fotografe a frente e o verso do cartão fictício. '
+      + 'Escolha um ambiente iluminado e mantenha todas as bordas '
+      + 'visíveis para que a imagem fique nítida.'
+    : 'Posicione um desenho de rosto no centro da câmera frontal. '
+      + 'Evite reflexos e mantenha o aparelho firme durante a captura.';
 
   useEffect(() => {
     const assinatura = AppState.addEventListener('change', estado => {
@@ -57,6 +118,10 @@ export default function VerificacaoEtapa({ tipo }: Props) {
     return () => assinatura.remove();
   }, []);
 
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: true });
+  }, [tipo, indice]);
+
   function mostrarErro(erro: unknown) {
     Alert.alert(
       'Não foi possível continuar',
@@ -66,51 +131,108 @@ export default function VerificacaoEtapa({ tipo }: Props) {
     );
   }
 
-  async function parear() {
-    if (bloqueado.current || !confirmado) return;
+  function tratarErro(erro: unknown) {
+    if (!api.temSessao()) {
+      setConectado(false);
+      setIndice(0);
+    }
+
+    mostrarErro(erro);
+  }
+
+  async function prepararCamera() {
+    const resultado = permissao?.granted
+      ? permissao
+      : await pedirPermissao();
+
+    if (!resultado.granted) {
+      Alert.alert(
+        'Permissão necessária',
+        'Autorize a câmera nas configurações para continuar.',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Abrir configurações',
+            onPress: () => {
+              void Linking.openSettings();
+            },
+          },
+        ],
+      );
+
+      return false;
+    }
+
+    return true;
+  }
+
+  async function abrirCamera() {
+    if (bloqueado.current) return;
 
     bloqueado.current = true;
     setOcupado(true);
 
     try {
-      await api.iniciar(codigo);
-      setCodigo('');
+      const autorizada = await prepararCamera();
+
+      if (!autorizada) return;
+
+      // Só cria uma nova sessão ao começar pela identidade.
+      if (!api.temSessao()) {
+        if (!documento) {
+          setConectado(false);
+
+          throw new Error(
+            'Inicie novamente pela etapa de identidade.',
+          );
+        }
+
+        await api.iniciar();
+        setIndice(0);
+      }
+
       setConectado(true);
+      setPronta(false);
+      setCameraAberta(true);
     } catch (erro) {
-      mostrarErro(erro);
+      tratarErro(erro);
     } finally {
       bloqueado.current = false;
       setOcupado(false);
     }
   }
 
-  async function abrirCamera() {
-    try {
-      const resultado = permissao?.granted
-        ? permissao
-        : await pedirPermissao();
+  function verificar() {
+    if (bloqueado.current) return;
 
-      if (!resultado.granted) {
-        Alert.alert(
-          'Permissão necessária',
-          'Autorize a câmera nas configurações para continuar.',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            {
-              text: 'Abrir configurações',
-              onPress: () => { void Linking.openSettings(); },
+    if (!conectado || !api.temSessao()) {
+      Alert.alert(
+        'Antes de começar',
+        'Esta é uma demonstração. Use somente um cartão fictício '
+          + 'e um desenho de rosto. As imagens serão enviadas ao '
+          + 'servidor local para processamento e descarte. '
+          + 'Nenhuma identidade será verificada.',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Continuar',
+            onPress: () => {
+              void abrirCamera();
             },
-          ],
-        );
+          },
+        ],
+      );
 
-        return;
-      }
-
-      setPronta(false);
-      setCameraAberta(true);
-    } catch (erro) {
-      mostrarErro(erro);
+      return;
     }
+
+    void abrirCamera();
   }
 
   async function fotografar() {
@@ -129,14 +251,16 @@ export default function VerificacaoEtapa({ tipo }: Props) {
         exif: false,
       });
 
-      if (!foto?.uri) throw new Error('Nenhuma foto foi gerada.');
+      if (!foto?.uri) {
+        throw new Error('Nenhuma foto foi gerada.');
+      }
 
       uri = foto.uri;
 
       await api.enviarFoto(parte, uri);
       enviada = true;
     } catch (erro) {
-      mostrarErro(erro);
+      tratarErro(erro);
     } finally {
       if (uri) {
         try {
@@ -144,7 +268,8 @@ export default function VerificacaoEtapa({ tipo }: Props) {
         } catch {
           Alert.alert(
             'Cache',
-            'Não foi possível remover a foto. Limpe o cache deste app de teste.',
+            'Não foi possível remover a foto. '
+              + 'Limpe o cache deste app de teste.',
           );
         }
       }
@@ -158,7 +283,7 @@ export default function VerificacaoEtapa({ tipo }: Props) {
 
     if (!enviada) return;
 
-    if (tipo === 'documento') {
+    if (documento) {
       if (indice === 0) {
         setIndice(1);
 
@@ -173,13 +298,12 @@ export default function VerificacaoEtapa({ tipo }: Props) {
       return;
     }
 
-    // A foto já chegou. Agora encerra a coleta no servidor.
+    setIndice(1);
+
     Alert.alert(
       'Imagem recebida',
       'Toque em concluir para encerrar a demonstração.',
     );
-
-    setIndice(1);
   }
 
   async function finalizar() {
@@ -191,140 +315,277 @@ export default function VerificacaoEtapa({ tipo }: Props) {
     try {
       await api.concluir();
 
+      setConectado(false);
+      setIndice(0);
+
       Alert.alert(
         'Demonstração concluída',
         'Os três arquivos foram recebidos e descartados. '
-        + 'Nenhuma identidade foi verificada.',
+          + 'Nenhuma identidade foi verificada.',
         [
           {
             text: 'Voltar',
-            onPress: () => router.replace('/'),
+            onPress: () => router.replace('/telaInicial'),
           },
         ],
       );
     } catch (erro) {
-      mostrarErro(erro);
+      tratarErro(erro);
     } finally {
       bloqueado.current = false;
       setOcupado(false);
     }
   }
 
-  const selfieEnviada = tipo === 'rosto' && indice === 1;
+  const precisaIdentidade = !documento && !conectado;
 
   return (
     <View style={s.container}>
-      <Text style={s.titulo}>
-        {tipo === 'documento'
-          ? 'Verificação de identidade'
-          : 'Verificação de rosto'}
-      </Text>
-
-      <Text style={s.aviso}>
-        DEMONSTRAÇÃO: use somente cartões fictícios e desenhos.
-        Não fotografe RG, CPF ou rosto de pessoa real.
-      </Text>
-
-      {!conectado ? (
-        tipo === 'documento' ? (
-          <>
-            <Text style={s.texto}>
-              Digite o código exibido no terminal do backend.
-            </Text>
-
-            <TextInput
-              style={s.input}
-              value={codigo}
-              onChangeText={setCodigo}
-              placeholder="Código temporário"
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-            />
-
-            <Text style={s.texto}>
-              Confirmo que utilizarei somente dados fictícios.
-            </Text>
-
-            <Switch
-              value={confirmado}
-              onValueChange={setConfirmado}
-            />
-
-            <Button
-              title={ocupado ? 'Conectando...' : 'Iniciar demonstração'}
-              disabled={!confirmado || !codigo.trim() || ocupado}
-              onPress={() => void parear()}
-              color="#B00D58"
-            />
-          </>
-        ) : (
-          <>
-            <Text style={s.texto}>
-              Comece pela tela de identidade.
-            </Text>
-
-            <Button
-              title="Ir para identidade"
-              onPress={() => router.replace('/identidade')}
-            />
-          </>
-        )
-      ) : selfieEnviada ? (
-        <Button
-          title={ocupado ? 'Concluindo...' : 'Concluir demonstração'}
-          disabled={ocupado}
-          onPress={() => void finalizar()}
-          color="#B00D58"
-        />
-      ) : cameraAberta ? (
-        <>
-          {appAtivo && (
-            <CameraView
-              ref={camera}
-              style={s.camera}
-              facing={parte === 'selfie' ? 'front' : 'back'}
-              mode="picture"
-              onCameraReady={() => setPronta(true)}
-              onMountError={() => {
-                setCameraAberta(false);
-                Alert.alert('Câmera', 'Câmera indisponível.');
-              }}
-            />
-          )}
-
-          <Button
-            title={ocupado ? 'Enviando...' : 'Fotografar e enviar'}
-            disabled={!pronta || ocupado || !appAtivo}
-            onPress={() => void fotografar()}
-            color="#B00D58"
-          />
-
-          <Button
-            title="Cancelar captura"
-            disabled={ocupado}
-            onPress={() => {
-              setCameraAberta(false);
-              setPronta(false);
-            }}
-          />
-        </>
-      ) : (
-        <>
-          <Text style={s.texto}>
-            {parte === 'selfie'
-              ? 'Use a câmera frontal para fotografar um desenho de rosto.'
-              : `Fotografe ${parte === 'frente' ? 'a frente' : 'o verso'} do cartão fictício.`}
+      <ScrollView
+        ref={scroll}
+        style={s.scroll}
+        contentContainerStyle={s.scrollConteudo}
+        showsVerticalScrollIndicator
+      >
+        <View
+          style={[
+            s.header,
+            compacto && s.headerCompacto,
+          ]}
+        >
+          <Text
+            style={[
+              s.titulo,
+              compacto && s.tituloCompacto,
+            ]}
+          >
+            {documento
+              ? 'Verificação de identidade'
+              : 'Verificação de rosto'}
           </Text>
+        </View>
 
-          <Button
-            title="Abrir câmera"
-            onPress={() => void abrirCamera()}
-            color="#B00D58"
-          />
-        </>
-      )}
+        <View
+          style={[
+            s.conteudo,
+            {
+              paddingHorizontal: margemHorizontal,
+              paddingTop: compacto ? 20 : 28,
+            },
+          ]}
+        >
+          <View style={s.coluna}>
+            <Text style={s.etapa}>
+              {documento ? 'ETAPA 1 DE 2' : 'ETAPA 2 DE 2'}
+            </Text>
+
+            {!cameraAberta && (
+              <>
+                <View
+                  style={[
+                    s.ilustracao,
+                    {
+                      width: tamanhoImagem,
+                      height: tamanhoImagem,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={
+                      documento
+                        ? require('../../assets/images/IconIdentidade.png')
+                        : require('../../assets/images/IconFace.png')
+                    }
+                    style={s.imagemVerificacao}
+                    resizeMode="contain"
+                    accessibilityLabel={
+                      documento
+                        ? 'Ilustração de identificação'
+                        : 'Ilustração de rosto'
+                    }
+                  />
+                </View>
+
+                <Text style={s.descricao}>{descricao}</Text>
+              </>
+            )}
+
+            <View style={s.avisoContainer}>
+              <Text style={s.aviso}>
+                Demonstração: use somente cartões fictícios e desenhos.
+                Não envie documentos ou rostos reais.
+              </Text>
+            </View>
+
+            {precisaIdentidade ? (
+              <View style={s.acoes}>
+                <Text style={s.instrucao}>
+                  Para continuar, complete primeiro a etapa de identidade.
+                </Text>
+
+                <Botao
+                  titulo="Ir para identidade"
+                  onPress={() => router.replace('/identidade')}
+                />
+              </View>
+            ) : selfieEnviada ? (
+              <View style={s.acoes}>
+                <View style={s.recebida}>
+                  <MaterialCommunityIcons
+                    name="check-circle-outline"
+                    size={28}
+                    color="#69D19C"
+                  />
+
+                  <Text style={s.recebidaTexto}>
+                    Imagem recebida com sucesso.
+                  </Text>
+                </View>
+
+                <Botao
+                  titulo={
+                    ocupado
+                      ? 'Concluindo...'
+                      : 'Concluir demonstração'
+                  }
+                  desabilitado={ocupado}
+                  onPress={() => void finalizar()}
+                />
+              </View>
+            ) : cameraAberta ? (
+              <View style={s.acoes}>
+                <Text style={s.instrucao}>
+                  {documento
+                    ? parte === 'frente'
+                      ? 'Enquadre a frente do cartão fictício.'
+                      : 'Enquadre o verso do cartão fictício.'
+                    : 'Enquadre o desenho de rosto na câmera frontal.'}
+                </Text>
+
+                <View
+                  style={[
+                    s.cameraContainer,
+                    { height: alturaCamera },
+                  ]}
+                >
+                  {appAtivo && (
+                    <CameraView
+                      ref={camera}
+                      style={s.camera}
+                      facing={
+                        parte === 'selfie' ? 'front' : 'back'
+                      }
+                      mode="picture"
+                      onCameraReady={() => setPronta(true)}
+                      onMountError={() => {
+                        setCameraAberta(false);
+                        setPronta(false);
+
+                        Alert.alert(
+                          'Câmera',
+                          'Câmera indisponível.',
+                        );
+                      }}
+                    />
+                  )}
+                </View>
+
+                <Botao
+                  titulo={
+                    ocupado
+                      ? 'Enviando...'
+                      : 'Fotografar e enviar'
+                  }
+                  desabilitado={
+                    !pronta || ocupado || !appAtivo
+                  }
+                  onPress={() => void fotografar()}
+                />
+
+                <Botao
+                  titulo="Cancelar captura"
+                  secundario
+                  desabilitado={ocupado}
+                  onPress={() => {
+                    setCameraAberta(false);
+                    setPronta(false);
+                  }}
+                />
+              </View>
+            ) : (
+              <View style={s.acoes}>
+                {documento && (
+                  <View style={s.progresso}>
+                    <View style={s.progressoItem}>
+                      <View
+                        style={[
+                          s.marcador,
+                          indice === 0
+                            ? s.marcadorAtivo
+                            : s.marcadorConcluido,
+                        ]}
+                      >
+                        {indice === 0 ? (
+                          <Text style={s.marcadorTexto}>1</Text>
+                        ) : (
+                          <MaterialCommunityIcons
+                            name="check"
+                            size={18}
+                            color="#FFFFFF"
+                          />
+                        )}
+                      </View>
+
+                      <Text style={s.progressoTexto}>
+                        Frente
+                      </Text>
+                    </View>
+
+                    <View style={s.linhaProgresso} />
+
+                    <View style={s.progressoItem}>
+                      <View
+                        style={[
+                          s.marcador,
+                          indice === 1 && s.marcadorAtivo,
+                        ]}
+                      >
+                        <Text style={s.marcadorTexto}>2</Text>
+                      </View>
+
+                      <Text style={s.progressoTexto}>
+                        Verso
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <Text style={s.instrucao}>
+                  {documento
+                    ? indice === 0
+                      ? 'Comece fotografando a frente do cartão fictício.'
+                      : 'Frente recebida! Agora fotografe o verso.'
+                    : 'Tudo pronto! Abra a câmera para capturar o desenho.'}
+                </Text>
+
+                <Botao
+                  titulo={
+                    ocupado
+                      ? 'Preparando...'
+                      : documento
+                        ? indice === 0
+                          ? 'Verificar frente'
+                          : 'Verificar verso'
+                        : 'Verificar rosto'
+                  }
+                  desabilitado={ocupado}
+                  onPress={verificar}
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -332,32 +593,224 @@ export default function VerificacaoEtapa({ tipo }: Props) {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    paddingTop: 64,
     backgroundColor: '#121212',
-    gap: 18,
   },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollConteudo: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
+
+  header: {
+    width: '100%',
+    backgroundColor: '#B00D58',
+    paddingTop: 64,
+    paddingBottom: 42,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomLeftRadius: 50,
+    borderBottomRightRadius: 50,
+  },
+
+  headerCompacto: {
+    paddingTop: 44,
+    paddingBottom: 30,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+  },
+
   titulo: {
-    color: '#FFF',
-    fontSize: 26,
+    width: '100%',
+    maxWidth: 360,
+    color: '#FFFFFF',
+    fontSize: 28,
     fontWeight: '700',
+    textAlign: 'center',
   },
-  texto: {
-    color: '#FFF',
-    fontSize: 16,
+
+  tituloCompacto: {
+    fontSize: 25,
   },
-  aviso: {
-    color: '#FFD580',
+
+  conteudo: {
+    width: '100%',
+    alignItems: 'center',
+    paddingBottom: 24,
+  },
+
+  coluna: {
+    width: '100%',
+    maxWidth: 460,
+    alignItems: 'center',
+  },
+
+  etapa: {
+    width: '100%',
+    color: '#BDBDBD',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+
+  ilustracao: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+
+  imagemVerificacao: {
+    width: '100%',
+    height: '100%',
+  },
+
+  descricao: {
+    width: '100%',
+    color: '#E0E0E0',
     fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 22,
   },
-  input: {
-    backgroundColor: '#222',
-    borderRadius: 12,
-    padding: 16,
-    color: '#FFF',
+
+  avisoContainer: {
+    width: '100%',
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#251E14',
+    marginBottom: 24,
   },
+
+  aviso: {
+    color: '#EBC88C',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+
+  acoes: {
+    width: '100%',
+    gap: 16,
+  },
+
+  instrucao: {
+    width: '100%',
+    color: '#C8C8C8',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  botao: {
+    width: '100%',
+    minHeight: 50,
+    backgroundColor: '#B00D58',
+    borderRadius: 30,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  botaoTexto: {
+    width: '100%',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+
+  botaoSecundario: {
+    backgroundColor: '#262626',
+    borderWidth: 1,
+    borderColor: '#555555',
+  },
+
+  botaoDesabilitado: {
+    opacity: 0.45,
+  },
+
+  cameraContainer: {
+    width: '100%',
+    backgroundColor: '#000000',
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#444444',
+  },
+
   camera: {
     flex: 1,
-    minHeight: 200,
+  },
+
+  progresso: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+
+  progressoItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  marcador: {
+    minWidth: 34,
+    minHeight: 34,
+    padding: 6,
+    borderRadius: 24,
+    backgroundColor: '#333333',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  marcadorAtivo: {
+    backgroundColor: '#B00D58',
+  },
+
+  marcadorConcluido: {
+    backgroundColor: '#288653',
+  },
+
+  marcadorTexto: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  progressoTexto: {
+    width: '100%',
+    color: '#C8C8C8',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+
+  linhaProgresso: {
+    flex: 0.6,
+    height: 2,
+    backgroundColor: '#444444',
+    marginHorizontal: 8,
+  },
+
+  recebida: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+
+  recebidaTexto: {
+    color: '#69D19C',
+    fontSize: 14,
+    flexShrink: 1,
   },
 });

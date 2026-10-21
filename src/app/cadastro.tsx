@@ -10,7 +10,8 @@ export default function Pagcadastro() {
 
 //ir para a tela inicial
   const handleEntrar = () => {
-    console.log('Indo para a tela inicial');
+    router.push('/identidade');
+    console.log('Indo para a tela de cadastro');
   };
 
 //ir para a pag login *tá la no final do código*
@@ -43,7 +44,7 @@ export default function Pagcadastro() {
           placeholder="Email" 
           placeholderTextColor="#A0A0A0" 
         />
-    //senha com o olho para mostrar a senha
+    {/* Senha com o olho para mostrar a senha */}
 
         <View style={styles.passwordContainer}>
         <TextInput 
@@ -57,7 +58,7 @@ export default function Pagcadastro() {
         </TouchableOpacity>
         </View>
 
-    //redes sociais
+    {/* Redes sociais */}
 
         <View style={styles.socialContainer}>
           <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
@@ -77,7 +78,7 @@ export default function Pagcadastro() {
           <Text style={styles.buttonText}>Cadastrar</Text>
         </TouchableOpacity>
 
-    //link para a tela de login
+    {/* Link para a tela de login */}
 
         <TouchableOpacity style={styles.linkButton} onPress={handleIrParaLogin}>
           <Text style={styles.linkText}>Já tem conta? Faça Login</Text>

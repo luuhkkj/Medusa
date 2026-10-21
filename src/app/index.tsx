@@ -10,7 +10,7 @@ export default function LoginScreen() {
 
 //ir para a tela inicial
   const handleEntrar = () => {
-    console.log('Indo para a tela inicial!');
+     router.replace('/telaInicial');
   };
 
 //ir para a pag cadastro *tá la no final do código*
