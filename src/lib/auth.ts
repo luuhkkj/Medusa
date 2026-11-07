@@ -23,6 +23,26 @@ export interface RotaSalva {
   [key: string]: any;
 }
 
+export interface PontoRisco {
+  id: string;
+  titulo: string;
+  descricao: string;
+  nivelRisco: 'baixo' | 'medio' | 'alto';
+  latitude: number;
+  longitude: number;
+}
+
+export interface Viagem {
+  id: string;
+  destino: string;
+  origem?: string;
+  rotaId?: string | null;
+  status: 'em_andamento' | 'concluida' | 'cancelada';
+  latitude?: number | null;
+  longitude?: number | null;
+  iniciadoEm: string;
+}
+
 export interface PerfilUsuario {
   id: string;
   nome: string;
@@ -30,6 +50,7 @@ export interface PerfilUsuario {
   contatos: Contato[];
   rotasSalvas: RotaSalva[];
   rotas?: RotaSalva[];
+  viagens?: Viagem[];
   criadoEm?: string;
 }
 

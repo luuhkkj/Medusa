@@ -218,6 +218,7 @@ app.post(
       senhaHash: hashSenha(senha),
       contatos: [],
       rotasSalvas: [],
+      viagens: [],
       criadoEm: new Date().toISOString(),
     };
 
@@ -495,6 +496,126 @@ app.delete('/v1/rotas/:id', autenticarUsuario, (req, res) => {
     id,
   });
 });
+
+// Lista de pontos de risco/alerta da região para exibição no mapa
+const PONTOS_RISCO_PADRAO = [
+  {
+    id: 'pr-1',
+    titulo: 'Praça da Sé - Entorno',
+    descricao: 'Baixa iluminação noturna e histórico de ocorrências frequentes.',
+    nivelRisco: 'alto',
+    latitude: -23.55052,
+    longitude: -46.633308,
+  },
+  {
+    id: 'pr-2',
+    titulo: 'Passarela Metrô Anhangabaú',
+    descricao: 'Passagem estreita com baixa visibilidade e pontos cegos.',
+    nivelRisco: 'alto',
+    latitude: -23.54890,
+    longitude: -46.63880,
+  },
+  {
+    id: 'pr-3',
+    titulo: 'Rua Augusta (Baixo Augusta)',
+    descricao: 'Movimentação intensa: risco moderado de furtos em aglomerações.',
+    nivelRisco: 'medio',
+    latitude: -23.55320,
+    longitude: -46.65210,
+  },
+  {
+    id: 'pr-4',
+    titulo: 'Viaduto do Chá',
+    descricao: 'Área com monitoramento por câmeras, porém requer atenção após as 21h.',
+    nivelRisco: 'medio',
+    latitude: -23.54670,
+    longitude: -46.63720,
+  },
+  {
+    id: 'pr-5',
+    titulo: 'Av. Paulista x Al. Campinas',
+    descricao: 'Região com boa iluminação pública e patrulhamento constante.',
+    nivelRisco: 'baixo',
+    latitude: -23.56510,
+    longitude: -46.65290,
+  },
+  {
+    id: 'pr-6',
+    titulo: 'Parque Ibirapuera - Portão 3',
+    descricao: 'Vias de acesso amplas e movimento regular durante o dia.',
+    nivelRisco: 'baixo',
+    latitude: -23.58741,
+    longitude: -46.65763,
+  },
+];
+
+// Endpoint autenticado: Obter pontos de alerta/risco mapeados
+app.get('/v1/mapa/pontos-risco', autenticarUsuario, (req, res) => {
+  const { nivelRisco } = req.query || {};
+  let pontos = PONTOS_RISCO_PADRAO;
+
+  if (nivelRisco && typeof nivelRisco === 'string') {
+    pontos = pontos.filter(
+      p => p.nivelRisco.toLowerCase() === nivelRisco.toLowerCase(),
+    );
+  }
+
+  return res.status(200).json(pontos);
+});
+
+// Endpoint autenticado: Iniciar trajeto / viagem
+app.post(
+  '/v1/viagens/iniciar',
+  express.json({ limit: '10kb' }),
+  autenticarUsuario,
+  (req, res) => {
+    const { destino, origem, rotaId, latitude, longitude, titulo, endereco } =
+      req.body || {};
+
+    const destinoFinal = destino || titulo || endereco;
+
+    if (!destinoFinal || typeof destinoFinal !== 'string' || !destinoFinal.trim()) {
+      return res.status(400).json({
+        erro: 'Informe o destino do trajeto.',
+      });
+    }
+
+    const novaViagem = {
+      id: randomBytes(16).toString('hex'),
+      destino: destinoFinal.trim(),
+      origem:
+        origem && typeof origem === 'string' && origem.trim()
+          ? origem.trim()
+          : 'Localização atual',
+      rotaId: rotaId || null,
+      status: 'em_andamento',
+      latitude: typeof latitude === 'number' ? latitude : null,
+      longitude: typeof longitude === 'number' ? longitude : null,
+      iniciadoEm: new Date().toISOString(),
+    };
+
+    const usuarios = carregarUsuarios();
+    const index = usuarios.findIndex(u => u.id === req.usuarioId);
+
+    if (index === -1) {
+      return res.status(404).json({
+        erro: 'Usuário não encontrado.',
+      });
+    }
+
+    if (!Array.isArray(usuarios[index].viagens)) {
+      usuarios[index].viagens = [];
+    }
+
+    usuarios[index].viagens.push(novaViagem);
+    salvarUsuarios(usuarios);
+
+    return res.status(201).json({
+      mensagem: 'Trajeto iniciado com sucesso!',
+      viagem: novaViagem,
+    });
+  },
+);
 
 app.use('/v1/verificacao', (req, res, next) => {
   const token = req
