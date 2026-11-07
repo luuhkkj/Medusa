@@ -424,4 +424,191 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
+//tela de rotas (lista de locais salvos)
+    rotasHeader: {
+        backgroundColor: '#B00D58',
+        paddingTop: 60,
+        paddingBottom: 22,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 40,
+        borderBottomRightRadius: 40,
+    },
+
+    rotasHeaderTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+
+    rotasHeaderTitle: {
+        color: '#FFFFFF',
+        fontSize: 22,
+        fontWeight: 'bold',
+    },
+
+    rotasHeaderActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+
+    rotasIconButton: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    rotasSearchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1E1E1E',
+        borderRadius: 24,
+        paddingHorizontal: 16,
+        height: 46,
+        borderWidth: 1,
+        borderColor: '#333333',
+    },
+
+    rotasSearchInput: {
+        flex: 1,
+        marginLeft: 10,
+        color: '#FFFFFF',
+        fontSize: 14,
+    },
+
+    rotasListContent: {
+        padding: 20,
+        paddingBottom: 40,
+    },
+
+    rotasCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1E1E1E',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#2A2A2A',
+    },
+
+    rotasIconContainer: {
+        width: 46,
+        height: 46,
+        borderRadius: 23,
+        backgroundColor: 'rgba(176, 13, 88, 0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
+    },
+
+    rotasInfo: {
+        flex: 1,
+    },
+
+    rotasTitulo: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+
+    rotasEndereco: {
+        color: '#A0A0A0',
+        fontSize: 13,
+        marginTop: 4,
+    },
+
+    rotasDeleteButton: {
+        padding: 8,
+        marginLeft: 8,
+    },
+
+    rotasEmptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 60,
+        paddingHorizontal: 30,
+    },
+
+    rotasEmptyTitle: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 16,
+        textAlign: 'center',
+    },
+
+    rotasEmptySubtitle: {
+        color: '#A0A0A0',
+        fontSize: 13,
+        marginTop: 8,
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        justifyContent: 'center',
+        padding: 20,
+    },
+
+    modalContent: {
+        backgroundColor: '#1E1E1E',
+        borderRadius: 20,
+        padding: 22,
+        borderWidth: 1,
+        borderColor: '#333333',
+    },
+
+    modalTitle: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+
+    modalInput: {
+        backgroundColor: '#121212',
+        borderRadius: 12,
+        padding: 14,
+        color: '#FFFFFF',
+        fontSize: 14,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#333333',
+    },
+
+    modalButtonContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 6,
+    },
+
+    modalButton: {
+        flex: 1,
+        paddingVertical: 13,
+        borderRadius: 25,
+        alignItems: 'center',
+    },
+
+    modalButtonConfirm: {
+        backgroundColor: '#B00D58',
+    },
+
+    modalButtonCancel: {
+        backgroundColor: '#2A2A2A',
+    },
+
+    modalButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+
 });

@@ -10,7 +10,13 @@ export interface Contato {
 
 export interface RotaSalva {
   id?: string;
-  nome: string;
+  titulo?: string;
+  endereco?: string;
+  tipo?: string;
+  icone?: string;
+  criadoEm?: string;
+  // Campos legados para compatibilidade retroativa
+  nome?: string;
   origem?: string;
   destino?: string;
   distancia?: string;

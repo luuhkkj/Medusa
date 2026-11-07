@@ -305,8 +305,8 @@ app.post(
   },
 );
 
-// Endpoint protegido de perfil do usuário autenticado
-app.get('/v1/perfil', (req, res) => {
+// Middleware de autenticação por Bearer Token
+function autenticarUsuario(req, res, next) {
   const authHeader = req.get('authorization');
   const token = authHeader?.match(/^Bearer\s+([A-Za-z0-9_-]+)$/i)?.[1];
 
@@ -333,6 +333,16 @@ app.get('/v1/perfil', (req, res) => {
     });
   }
 
+  req.usuarioLogado = usuario;
+  req.usuarioId = sessao.usuarioId;
+  req.sessao = sessao;
+  req.token = token;
+  next();
+}
+
+// Endpoint protegido de perfil do usuário autenticado
+app.get('/v1/perfil', autenticarUsuario, (req, res) => {
+  const usuario = req.usuarioLogado;
   const contatos = Array.isArray(usuario.contatos) ? usuario.contatos : [];
   const rotasSalvas = Array.isArray(usuario.rotasSalvas)
     ? usuario.rotasSalvas
@@ -353,6 +363,136 @@ app.get('/v1/perfil', (req, res) => {
   return res.status(200).json({
     ...dadosPerfil,
     usuario: dadosPerfil,
+  });
+});
+
+// Endpoints de Rotas Salvas do Usuário
+
+// Listar rotas salvas
+app.get('/v1/rotas', autenticarUsuario, (req, res) => {
+  const usuario = req.usuarioLogado;
+  const rotasSalvas = Array.isArray(usuario.rotasSalvas)
+    ? usuario.rotasSalvas
+    : Array.isArray(usuario.rotas)
+      ? usuario.rotas
+      : [];
+
+  return res.status(200).json(rotasSalvas);
+});
+
+// Adicionar nova rota salva
+app.post(
+  '/v1/rotas',
+  express.json({ limit: '10kb' }),
+  autenticarUsuario,
+  (req, res) => {
+    const { titulo, endereco, tipo, icone } = req.body || {};
+
+    if (!titulo || typeof titulo !== 'string' || !titulo.trim()) {
+      return res.status(400).json({
+        erro: 'O campo título é obrigatório.',
+      });
+    }
+
+    if (!endereco || typeof endereco !== 'string' || !endereco.trim()) {
+      return res.status(400).json({
+        erro: 'O campo endereço é obrigatório.',
+      });
+    }
+
+    const tituloNorm = titulo.trim().toLowerCase();
+    let iconeResolvido = icone || tipo;
+    let tipoResolvido = tipo;
+
+    if (!iconeResolvido) {
+      if (
+        /\b(trabalho|servico|serviço|trampo|office|work)\b/i.test(tituloNorm)
+      ) {
+        iconeResolvido = 'briefcase';
+        tipoResolvido = tipoResolvido || 'trabalho';
+      } else if (
+        /\b(casa|home|lar|ap|apto|apartamento|residencia|residência)\b/i.test(tituloNorm)
+      ) {
+        iconeResolvido = 'home';
+        tipoResolvido = tipoResolvido || 'casa';
+      } else if (
+        /\b(faculdade|universidade|escola|curso|colegio|colégio|estudo)\b/i.test(tituloNorm)
+      ) {
+        iconeResolvido = 'book';
+        tipoResolvido = tipoResolvido || 'estudo';
+      } else if (
+        /\b(academia|treino|crossfit|gym|fitness)\b/i.test(tituloNorm)
+      ) {
+        iconeResolvido = 'activity';
+        tipoResolvido = tipoResolvido || 'saude';
+      } else {
+        iconeResolvido = 'map-pin';
+        tipoResolvido = tipoResolvido || 'outro';
+      }
+    }
+
+    const id = randomBytes(16).toString('hex');
+    const novaRota = {
+      id,
+      titulo: titulo.trim(),
+      endereco: endereco.trim(),
+      tipo: tipoResolvido || 'outro',
+      icone: iconeResolvido,
+      criadoEm: new Date().toISOString(),
+    };
+
+    const usuarios = carregarUsuarios();
+    const index = usuarios.findIndex(u => u.id === req.usuarioId);
+
+    if (index === -1) {
+      return res.status(404).json({
+        erro: 'Usuário não encontrado.',
+      });
+    }
+
+    if (!Array.isArray(usuarios[index].rotasSalvas)) {
+      usuarios[index].rotasSalvas = [];
+    }
+
+    usuarios[index].rotasSalvas.push(novaRota);
+    salvarUsuarios(usuarios);
+
+    return res.status(201).json({
+      mensagem: 'Rota salva com sucesso!',
+      rota: novaRota,
+    });
+  },
+);
+
+// Remover rota salva
+app.delete('/v1/rotas/:id', autenticarUsuario, (req, res) => {
+  const { id } = req.params;
+  const usuarios = carregarUsuarios();
+  const index = usuarios.findIndex(u => u.id === req.usuarioId);
+
+  if (index === -1) {
+    return res.status(404).json({
+      erro: 'Usuário não encontrado.',
+    });
+  }
+
+  const rotas = Array.isArray(usuarios[index].rotasSalvas)
+    ? usuarios[index].rotasSalvas
+    : [];
+
+  const rotaExiste = rotas.some(r => r.id === id);
+  if (!rotaExiste) {
+    return res.status(404).json({
+      erro: 'Rota não encontrada.',
+    });
+  }
+
+  usuarios[index].rotasSalvas = rotas.filter(r => r.id !== id);
+  salvarUsuarios(usuarios);
+
+  return res.status(200).json({
+    mensagem: 'Rota removida com sucesso!',
+    id,
   });
 });
 
