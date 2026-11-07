@@ -949,4 +949,190 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
+//tela de conectar dispositivo (chaveiro inteligente)
+    deviceHeader: {
+        backgroundColor: '#B00D58',
+        paddingTop: 60,
+        paddingBottom: 25,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 40,
+        borderBottomRightRadius: 40,
+    },
+
+    deviceHeaderTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    deviceHeaderTitle: {
+        color: '#FFFFFF',
+        fontSize: 22,
+        fontWeight: 'bold',
+    },
+
+    deviceHeroCard: {
+        backgroundColor: '#1E1E1E',
+        borderRadius: 20,
+        padding: 22,
+        marginHorizontal: 20,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: '#2A2A2A',
+    },
+
+    deviceHeroHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+
+    deviceBadgeConnected: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(42, 157, 143, 0.2)',
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 12,
+        gap: 6,
+    },
+
+    deviceBadgeConnectedDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#2A9D8F',
+    },
+
+    deviceBadgeConnectedText: {
+        color: '#2A9D8F',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+
+    deviceHeroTitle: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+
+    deviceHeroCode: {
+        color: '#A0A0A0',
+        fontSize: 13,
+        marginTop: 4,
+    },
+
+    deviceBatteryRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 18,
+        marginBottom: 8,
+    },
+
+    deviceBatteryBarContainer: {
+        height: 8,
+        backgroundColor: '#2A2A2A',
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+
+    deviceBatteryBarFill: {
+        height: '100%',
+        backgroundColor: '#2A9D8F',
+        borderRadius: 4,
+    },
+
+    deviceMetaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 14,
+        paddingTop: 14,
+        borderTopWidth: 1,
+        borderTopColor: '#2A2A2A',
+    },
+
+    deviceMetaItem: {
+        flex: 1,
+    },
+
+    deviceMetaLabel: {
+        color: '#777777',
+        fontSize: 11,
+    },
+
+    deviceMetaVal: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '600',
+        marginTop: 3,
+    },
+
+    devicePanicButton: {
+        backgroundColor: '#B00D58',
+        borderRadius: 18,
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginHorizontal: 20,
+        marginTop: 18,
+        gap: 10,
+        elevation: 4,
+        shadowColor: '#B00D58',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 6,
+    },
+
+    devicePanicButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+
+    deviceSecondaryAction: {
+        backgroundColor: '#1E1E1E',
+        borderRadius: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginHorizontal: 20,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: '#2A2A2A',
+    },
+
+    deviceEmptyCard: {
+        backgroundColor: '#1E1E1E',
+        borderRadius: 20,
+        padding: 28,
+        marginHorizontal: 20,
+        marginTop: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#2A2A2A',
+    },
+
+    devicePairButton: {
+        backgroundColor: '#B00D58',
+        borderRadius: 25,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginTop: 20,
+    },
+
+    devicePairButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: 'bold',
+    },
+
 });

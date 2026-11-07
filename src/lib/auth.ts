@@ -43,6 +43,30 @@ export interface Viagem {
   iniciadoEm: string;
 }
 
+export interface Dispositivo {
+  id: string;
+  nome: string;
+  conectado: boolean;
+  nivelBateria: number;
+  ultimoPing: string;
+  versaoFirmware?: string;
+  codigoIdentificador?: string;
+  pareadoEm?: string;
+}
+
+export interface AlertaPanico {
+  id: string;
+  tipo: string;
+  dispositivoId: string;
+  dispositivoNome: string;
+  dataHora: string;
+  status: string;
+  localizacao?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
 export interface PerfilUsuario {
   id: string;
   nome: string;
@@ -51,6 +75,8 @@ export interface PerfilUsuario {
   rotasSalvas: RotaSalva[];
   rotas?: RotaSalva[];
   viagens?: Viagem[];
+  dispositivo?: Dispositivo | null;
+  alertasPanico?: AlertaPanico[];
   criadoEm?: string;
 }
 

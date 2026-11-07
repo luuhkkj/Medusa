@@ -219,6 +219,8 @@ app.post(
       contatos: [],
       rotasSalvas: [],
       viagens: [],
+      dispositivo: null,
+      alertasPanico: [],
       criadoEm: new Date().toISOString(),
     };
 
@@ -616,6 +618,161 @@ app.post(
     });
   },
 );
+
+// Endpoints do Chaveiro Inteligente / Dispositivo de Proteção Física
+
+// Obter status do dispositivo pareado
+app.get('/v1/dispositivos/status', autenticarUsuario, (req, res) => {
+  const usuario = req.usuarioLogado;
+  const dispositivo = usuario.dispositivo;
+
+  if (!dispositivo || typeof dispositivo !== 'object') {
+    return res.status(200).json({
+      dispositivo: null,
+      conectado: false,
+    });
+  }
+
+  return res.status(200).json({
+    dispositivo: {
+      id: dispositivo.id,
+      nome: dispositivo.nome || 'Chaveiro Medusa Pro',
+      conectado: dispositivo.conectado === true,
+      nivelBateria: typeof dispositivo.nivelBateria === 'number' ? dispositivo.nivelBateria : 88,
+      ultimoPing: dispositivo.ultimoPing || new Date().toISOString(),
+      versaoFirmware: dispositivo.versaoFirmware || 'v1.4.2',
+      codigoIdentificador: dispositivo.codigoIdentificador || 'MEDUSA-CH-PRO',
+      pareadoEm: dispositivo.pareadoEm || dispositivo.criadoEm || new Date().toISOString(),
+    },
+    conectado: dispositivo.conectado === true,
+  });
+});
+
+// Parear novo dispositivo inteligente
+app.post(
+  '/v1/dispositivos/parear',
+  express.json({ limit: '10kb' }),
+  autenticarUsuario,
+  (req, res) => {
+    const { nome, codigoIdentificador } = req.body || {};
+
+    const nomeFinal =
+      nome && typeof nome === 'string' && nome.trim()
+        ? nome.trim()
+        : 'Chaveiro Medusa Pro';
+
+    const codigoFinal =
+      codigoIdentificador &&
+      typeof codigoIdentificador === 'string' &&
+      codigoIdentificador.trim()
+        ? codigoIdentificador.trim().toUpperCase()
+        : `MEDUSA-CH-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const novoDispositivo = {
+      id: randomBytes(16).toString('hex'),
+      nome: nomeFinal,
+      codigoIdentificador: codigoFinal,
+      conectado: true,
+      nivelBateria: 88,
+      ultimoPing: new Date().toISOString(),
+      versaoFirmware: 'v1.4.2',
+      pareadoEm: new Date().toISOString(),
+    };
+
+    const usuarios = carregarUsuarios();
+    const index = usuarios.findIndex(u => u.id === req.usuarioId);
+
+    if (index === -1) {
+      return res.status(404).json({
+        erro: 'Usuário não encontrado.',
+      });
+    }
+
+    usuarios[index].dispositivo = novoDispositivo;
+    salvarUsuarios(usuarios);
+
+    return res.status(201).json({
+      mensagem: 'Dispositivo pareado com sucesso!',
+      dispositivo: novoDispositivo,
+      conectado: true,
+    });
+  },
+);
+
+// Acionar alerta de pânico pelo chaveiro
+app.post(
+  '/v1/dispositivos/alerta-panico',
+  express.json({ limit: '10kb' }),
+  autenticarUsuario,
+  (req, res) => {
+    const usuarios = carregarUsuarios();
+    const index = usuarios.findIndex(u => u.id === req.usuarioId);
+
+    if (index === -1) {
+      return res.status(404).json({
+        erro: 'Usuário não encontrado.',
+      });
+    }
+
+    const dispositivo = usuarios[index].dispositivo;
+
+    if (!dispositivo || !dispositivo.conectado) {
+      return res.status(400).json({
+        erro: 'Nenhum dispositivo conectado para acionamento do botão de pânico.',
+      });
+    }
+
+    // Atualiza o último ping do dispositivo
+    dispositivo.ultimoPing = new Date().toISOString();
+
+    const novoAlerta = {
+      id: randomBytes(16).toString('hex'),
+      tipo: 'botao_panico_chaveiro',
+      dispositivoId: dispositivo.id,
+      dispositivoNome: dispositivo.nome,
+      dataHora: new Date().toISOString(),
+      status: 'acionado',
+      localizacao: {
+        latitude: req.body?.latitude || -23.55052,
+        longitude: req.body?.longitude || -46.633308,
+      },
+    };
+
+    if (!Array.isArray(usuarios[index].alertasPanico)) {
+      usuarios[index].alertasPanico = [];
+    }
+
+    usuarios[index].alertasPanico.push(novoAlerta);
+    salvarUsuarios(usuarios);
+
+    return res.status(201).json({
+      mensagem: 'Alerta de pânico registrado com sucesso!',
+      alerta: novoAlerta,
+      dispositivo,
+    });
+  },
+);
+
+// Desparear dispositivo
+app.post('/v1/dispositivos/desparear', autenticarUsuario, (req, res) => {
+  const usuarios = carregarUsuarios();
+  const index = usuarios.findIndex(u => u.id === req.usuarioId);
+
+  if (index === -1) {
+    return res.status(404).json({
+      erro: 'Usuário não encontrado.',
+    });
+  }
+
+  usuarios[index].dispositivo = null;
+  salvarUsuarios(usuarios);
+
+  return res.status(200).json({
+    mensagem: 'Dispositivo despareado com sucesso!',
+    dispositivo: null,
+    conectado: false,
+  });
+});
 
 app.use('/v1/verificacao', (req, res, next) => {
   const token = req
