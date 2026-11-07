@@ -330,4 +330,98 @@ export const styles = StyleSheet.create({
         fontSize: 15,
     },
 
+    profileBackButton: {
+        position: 'absolute',
+        top: 50,
+        left: 20,
+        zIndex: 10,
+        padding: 8,
+    },
+
+    profileStatsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        backgroundColor: '#1E1E1E',
+        marginHorizontal: 20,
+        marginTop: 20,
+        marginBottom: 10,
+        paddingVertical: 18,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#2A2A2A',
+    },
+
+    profileStatItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+
+    profileStatNumber: {
+        color: '#FFFFFF',
+        fontSize: 22,
+        fontWeight: 'bold',
+    },
+
+    profileStatLabel: {
+        color: '#A0A0A0',
+        fontSize: 13,
+        marginTop: 4,
+    },
+
+    profileStatDivider: {
+        width: 1,
+        height: 35,
+        backgroundColor: '#2A2A2A',
+    },
+
+    profileOptionBadge: {
+        backgroundColor: '#B00D58',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        marginRight: 6,
+    },
+
+    profileOptionBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+
+    profileLoadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+
+    profileErrorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 30,
+    },
+
+    profileErrorText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        textAlign: 'center',
+        marginTop: 15,
+        marginBottom: 20,
+    },
+
+    profileRetryButton: {
+        backgroundColor: '#B00D58',
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 25,
+    },
+
+    profileRetryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+
 });

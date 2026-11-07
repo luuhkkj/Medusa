@@ -90,7 +90,7 @@ app.use((req, res, next) => {
 
   const ip = req.socket.remoteAddress;
 
-  const local = [
+  const local = !ip || [
     '127.0.0.1',
     '::1',
     '::ffff:127.0.0.1',
@@ -216,6 +216,8 @@ app.post(
       nome: nome.trim(),
       email: emailNormalizado,
       senhaHash: hashSenha(senha),
+      contatos: [],
+      rotasSalvas: [],
       criadoEm: new Date().toISOString(),
     };
 
@@ -302,6 +304,57 @@ app.post(
     });
   },
 );
+
+// Endpoint protegido de perfil do usuário autenticado
+app.get('/v1/perfil', (req, res) => {
+  const authHeader = req.get('authorization');
+  const token = authHeader?.match(/^Bearer\s+([A-Za-z0-9_-]+)$/i)?.[1];
+
+  if (!token) {
+    return res.status(401).json({
+      erro: 'Token de autenticação não fornecido ou inválido.',
+    });
+  }
+
+  const sessao = sessoes.get(token);
+
+  if (!sessao || sessao.expiraEm <= Date.now() || !sessao.usuarioId) {
+    return res.status(401).json({
+      erro: 'Sessão expirada ou não autorizada. Faça login novamente.',
+    });
+  }
+
+  const usuarios = carregarUsuarios();
+  const usuario = usuarios.find(u => u.id === sessao.usuarioId);
+
+  if (!usuario) {
+    return res.status(404).json({
+      erro: 'Usuário não encontrado.',
+    });
+  }
+
+  const contatos = Array.isArray(usuario.contatos) ? usuario.contatos : [];
+  const rotasSalvas = Array.isArray(usuario.rotasSalvas)
+    ? usuario.rotasSalvas
+    : Array.isArray(usuario.rotas)
+      ? usuario.rotas
+      : [];
+
+  const dadosPerfil = {
+    id: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+    contatos,
+    rotasSalvas,
+    rotas: rotasSalvas,
+    criadoEm: usuario.criadoEm,
+  };
+
+  return res.status(200).json({
+    ...dadosPerfil,
+    usuario: dadosPerfil,
+  });
+});
 
 app.use('/v1/verificacao', (req, res, next) => {
   const token = req
@@ -479,3 +532,5 @@ const servidor = app.listen(3333, '127.0.0.1', () => {
 
 servidor.requestTimeout = 30_000;
 servidor.headersTimeout = 10_000;
+
+module.exports = { app, servidor, sessoes, carregarUsuarios, salvarUsuarios };

@@ -4,6 +4,7 @@ import { AntDesign, FontAwesome5, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 //"CSS" 
 import { styles } from '../style';
+import { salvarToken, salvarUsuario } from '../lib/auth';
 
 export default function Pagcadastro() {
   const router = useRouter();
@@ -48,6 +49,13 @@ export default function Pagcadastro() {
           dados.erro || 'Não foi possível realizar o cadastro. Tente novamente.',
         );
         return;
+      }
+
+      if (dados.token) {
+        salvarToken(dados.token);
+      }
+      if (dados.usuario) {
+        salvarUsuario(dados.usuario);
       }
 
       Alert.alert('Sucesso', 'Cadastro realizado com sucesso!', [

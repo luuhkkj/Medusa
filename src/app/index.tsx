@@ -4,6 +4,7 @@ import { AntDesign, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 //"CSS" 
 import { styles } from '../style';
+import { salvarToken, salvarUsuario } from '../lib/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -40,6 +41,13 @@ export default function LoginScreen() {
           dados.erro || 'Falha ao autenticar. Verifique suas credenciais.',
         );
         return;
+      }
+
+      if (dados.token) {
+        salvarToken(dados.token);
+      }
+      if (dados.usuario) {
+        salvarUsuario(dados.usuario);
       }
 
       // Se o login der certo, navegue para a próxima tela (/telaInicial)

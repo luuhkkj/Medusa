@@ -18,6 +18,11 @@ export default function TelaInicialScreen() {
     router.push('/conectarDispositivo');
   };
 
+//ir para a tela de perfil
+  const handleVerPerfil = () => {
+    router.push('/perfil');
+  };
+
   return (
     <View style={styles.homeContainer}>
 
@@ -27,6 +32,12 @@ export default function TelaInicialScreen() {
       </View>
 
       <ScrollView style={styles.homeContent}>
+
+        <TouchableOpacity style={styles.homeCard} onPress={handleVerPerfil}>
+          <MaterialCommunityIcons name="account-circle-outline" size={28} color="#B00D58" />
+          <Text style={styles.homeCardTitle}>Meu Perfil</Text>
+          <Text style={styles.homeCardText}>Veja seus dados, contatos e rotas salvas</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.homeCard} onPress={handleVerRotas}>
           <MaterialCommunityIcons name="map-marker-path" size={28} color="#B00D58" />
